@@ -11,15 +11,35 @@
 // ignore_for_file: dangling_library_doc_comments
 
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // State management
 import 'package:supabase_flutter/supabase_flutter.dart'; // Supabase integration
+import 'package:logger/logger.dart';
+import 'screens/registration_screen.dart';
+
+final logger = Logger();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Global error handler
+  FlutterError.onError = (FlutterErrorDetails details) {
+    logger.e(
+      'Flutter Error',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+    FlutterError.presentError(details);
+  };
+  // Catch all uncaught errors
+  PlatformDispatcher.instance.onError = (error, stack) {
+    logger.e('Uncaught Error', error: error, stackTrace: stack);
+    return true;
+  };
   // Initialize Supabase (replace with your actual keys in production)
   await Supabase.initialize(
-    url: 'YOUR_SUPABASE_URL',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY',
+    url: 'https://doqgjwpipqpnlnmrlvcp.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvcWdqd3BpcHFwbmxubXJsdmNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NTQxNTMsImV4cCI6MjA2ODMzMDE1M30.6MjQ9faumdO4fAxUSbXje0SeXKU9bqKNAjj-Hylxf64',
   );
   // Run the app with Riverpod for global state management
   runApp(const ProviderScope(child: ConvenTVApp()));
@@ -66,158 +86,6 @@ class AuthGate extends ConsumerWidget {
   }
 }
 
-/// RegistrationScreen: Asks for email/phone and local language
-class RegistrationScreen extends StatefulWidget {
-  const RegistrationScreen({super.key});
-
-  @override
-  State<RegistrationScreen> createState() => _RegistrationScreenState();
-}
-
-class _RegistrationScreenState extends State<RegistrationScreen> {
-  final _formKey = GlobalKey<FormState>();
-  String? _email;
-  String? _password;
-  String? _language;
-  final List<String> _languages = ['Luganda', 'Lusoga', 'Runyakole'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // App logo or futuristic header
-                Text(
-                  'Conven TV',
-                  style: TextStyle(
-                    color: Colors.orangeAccent,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                    shadows: [Shadow(color: Colors.orange, blurRadius: 12)],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // Email input
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    labelStyle: TextStyle(color: Colors.orange),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.orange),
-                    ),
-                  ),
-                  style: const TextStyle(color: Colors.white),
-                  validator: (value) => value != null && value.contains('@')
-                      ? null
-                      : 'Enter a valid email',
-                  onSaved: (value) => _email = value,
-                ),
-                const SizedBox(height: 24),
-                // Password input
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    labelStyle: TextStyle(color: Colors.orange),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.orange),
-                    ),
-                  ),
-                  style: const TextStyle(color: Colors.white),
-                  obscureText: true,
-                  validator: (value) => value != null && value.length >= 6
-                      ? null
-                      : 'Enter a password (min 6 chars)',
-                  onSaved: (value) => _password = value,
-                ),
-                const SizedBox(height: 24),
-                // Language dropdown
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Local Language',
-                    labelStyle: TextStyle(color: Colors.orange),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.orange),
-                    ),
-                  ),
-                  dropdownColor: Colors.black,
-                  value: _language,
-                  items: _languages
-                      .map(
-                        (lang) => DropdownMenuItem(
-                          value: lang,
-                          child: Text(
-                            lang,
-                            style: const TextStyle(color: Colors.orange),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) => setState(() => _language = value),
-                  validator: (value) =>
-                      value != null ? null : 'Select your local language',
-                ),
-                const SizedBox(height: 32),
-                // Register button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 48,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  onPressed: () async {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      _formKey.currentState?.save();
-                      // Register user with Supabase
-                      try {
-                        final response = await Supabase.instance.client.auth
-                            .signUp(
-                              email: _email!,
-                              password: _password!,
-                              data: {'local_language': _language},
-                            );
-                        if (!mounted) return;
-                        if (response.user != null) {
-                          // Registration successful, go to home
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => const HomeScreen(),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (!mounted) return;
-                        // Show error
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Registration failed: $e')),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Register', style: TextStyle(fontSize: 18)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Helper function to fetch recommended movies from Supabase based on user language
 Future<List<Map<String, dynamic>>> fetchRecommendedMovies() async {
   final client = Supabase.instance.client;
@@ -239,6 +107,7 @@ Future<List<Map<String, dynamic>>> fetchRecommendedMovies() async {
 
 /// HomeScreen: Main movie browsing and recommendations
 class HomeScreen extends StatelessWidget {
+  // Removed misplaced logger call outside of class body
   const HomeScreen({super.key});
 
   @override
@@ -256,11 +125,12 @@ class HomeScreen extends StatelessWidget {
           );
         }
         if (snapshot.hasError) {
+          logger.e('Error loading movies', error: snapshot.error);
           return Scaffold(
             backgroundColor: Colors.black,
             body: Center(
               child: Text(
-                'Error loading movies: \\${snapshot.error}',
+                'Error loading movies: ${snapshot.error}',
                 style: TextStyle(color: Colors.red),
               ),
             ),
